@@ -19,7 +19,7 @@
   "author": "Sumit Majumdar",
   "license": "MIT",
   "engines":{
-	"node":"0.10.x"
+	"node":"0.10.x"	
   }
   
 }

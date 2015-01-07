@@ -1,8 +1,9 @@
 var express = require('express');
 var app = express();
-var http = require('http').createServer(app).listen(80);
+var http = require('http').createServer(app).listen(process.env.PORT||3000,function(){
+	console.log('Application running on port '+this.address().port);
+});
 var io = require('socket.io').listen(http);
-
 var userlist = {};
 var liveVideoCalls = {};
 app.use(express.static(__dirname+'/static/'));
