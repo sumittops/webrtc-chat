@@ -1,0 +1,220 @@
+socket.on('created', function (room){
+console.log('Created room ' + room);
+isInitiator = true;
+// Call getUserMedia()
+navigator.getUserMedia(constraints, handleUserMedia, handleUserMediaError);
+console.log('Getting user media with constraints', constraints);
+checkAndStart();
+});
+// Handle 'full' message coming back from server:
+// this peer arrived too late :-(
+
+socket.on('full', function (room){
+console.log('Room ' + room + ' is full');
+});
+// Handle 'join' message coming back from server:
+// another peer is joining the channel
+socket.on('join', function (room){
+console.log('Another peer made a request to join room ' + room);
+console.log('This peer is the initiator of room ' + room + '!');
+isChannelReady = true;
+});
+// Handle 'joined' message coming back from server:
+// this is the second peer joining the channel
+socket.on('joined', function (room){
+console.log('This peer has joined room ' + room);
+isChannelReady = true;
+// Call getUserMedia()
+navigator.getUserMedia(constraints, handleUserMedia, handleUserMediaError);
+console.log('Getting user media with constraints', constraints);
+});
+// Server-sent log message...
+socket.on('log', function (array){
+console.log.apply(console, array);
+});
+// Receive message from the other peer via the signaling server
+socket.on('message', function (message){
+console.log('Received message:', message);
+if (message === 'got user media') {
+checkAndStart();
+} else if (message.type === 'offer') {
+if (!isInitiator && !isStarted) {
+checkAndStart();
+}
+pc.setRemoteDescription(new RTCSessionDescription(message));
+doAnswer();
+} else if (message.type === 'answer' && isStarted) {
+pc.setRemoteDescription(new RTCSessionDescription(message));
+} else if (message.type === 'candidate' && isStarted) {
+var candidate = new RTCIceCandidate({sdpMLineIndex:message.label,
+candidate:message.candidate});
+pc.addIceCandidate(candidate);
+} else if (message === 'bye' && isStarted) {
+handleRemoteHangup();
+}
+});
+// 2. Client-->Server
+A Complete WebRTC Call Flow  |  99
+www.it-ebooks.info
+// Send message to the other peer via the signaling server
+function sendMessage(message){
+console.log('Sending message: ', message);
+socket.emit('message', message);
+}
+// Channel negotiation trigger function
+function checkAndStart() {
+if (!isStarted && typeof localStream != 'undefined' && isChannelReady) {
+createPeerConnection();
+isStarted = true;
+if (isInitiator) {
+doCall();
+}
+}
+}
+// PeerConnection management...
+function createPeerConnection() {
+try {
+pc = new RTCPeerConnection(pc_config, pc_constraints);
+pc.addStream(localStream);
+pc.onicecandidate = handleIceCandidate;
+console.log('Created RTCPeerConnnection with:\n' +
+' config: \'' + JSON.stringify(pc_config) + '\';\n' +
+' constraints: \'' + JSON.stringify(pc_constraints) + '\'.');
+} catch (e) {
+console.log('Failed to create PeerConnection, exception: ' + e.message);
+alert('Cannot create RTCPeerConnection object.');
+return;
+}
+pc.onaddstream = handleRemoteStreamAdded;
+pc.onremovestream = handleRemoteStreamRemoved;
+if (isInitiator) {
+try {
+// Create a reliable data channel
+sendChannel = pc.createDataChannel("sendDataChannel",
+{reliable: true});
+trace('Created send data channel');
+} catch (e) {
+alert('Failed to create data channel. ');
+trace('createDataChannel() failed with exception: ' + e.message);
+}
+sendChannel.onopen = handleSendChannelStateChange;
+sendChannel.onmessage = handleMessage;
+sendChannel.onclose = handleSendChannelStateChange;
+} else { // Joiner
+100  |  Chapter 5: Putting It All Together: Your First WebRTC System from Scratch
+www.it-ebooks.info
+pc.ondatachannel = gotReceiveChannel;
+}
+}
+// Data channel management
+function sendData() {
+var data = sendTextarea.value;
+if(isInitiator) sendChannel.send(data);
+else receiveChannel.send(data);
+trace('Sent data: ' + data);
+}
+// Handlers...
+function gotReceiveChannel(event) {
+trace('Receive Channel Callback');
+receiveChannel = event.channel;
+receiveChannel.onmessage = handleMessage;
+receiveChannel.onopen = handleReceiveChannelStateChange;
+receiveChannel.onclose = handleReceiveChannelStateChange;
+}
+function handleMessage(event) {
+trace('Received message: ' + event.data);
+receiveTextarea.value += event.data + '\n';
+}
+function handleSendChannelStateChange() {
+var readyState = sendChannel.readyState;
+trace('Send channel state is: ' + readyState);
+// If channel ready, enable user's input
+if (readyState == "open") {
+dataChannelSend.disabled = false;
+dataChannelSend.focus();
+dataChannelSend.placeholder = "";
+sendButton.disabled = false;
+} else {
+dataChannelSend.disabled = true;
+sendButton.disabled = true;
+}
+}
+function handleReceiveChannelStateChange() {
+var readyState = receiveChannel.readyState;
+trace('Receive channel state is: ' + readyState);
+// If channel ready, enable user's input
+if (readyState == "open") {
+dataChannelSend.disabled = false;
+dataChannelSend.focus();
+dataChannelSend.placeholder = "";
+sendButton.disabled = false;
+} else {
+A Complete WebRTC Call Flow  |  101
+www.it-ebooks.info
+dataChannelSend.disabled = true;
+sendButton.disabled = true;
+}
+}
+// ICE candidates management
+function handleIceCandidate(event) {
+console.log('handleIceCandidate event: ', event);
+if (event.candidate) {
+sendMessage({
+type: 'candidate',
+label: event.candidate.sdpMLineIndex,
+id: event.candidate.sdpMid,
+candidate: event.candidate.candidate});
+} else {
+console.log('End of candidates.');
+}
+}
+// Create Offer
+function doCall() {
+console.log('Creating Offer...');
+pc.createOffer(setLocalAndSendMessage, onSignalingError, sdpConstraints);
+}
+// Signaling error handler
+function onSignalingError(error) {
+console.log('Failed to create signaling message : ' + error.name);
+}
+// Create Answer
+function doAnswer() {
+console.log('Sending answer to peer.');
+pc.createAnswer(setLocalAndSendMessage, onSignalingError, sdpConstraints);
+}
+// Success handler for both createOffer()
+// and createAnswer()
+function setLocalAndSendMessage(sessionDescription) {
+pc.setLocalDescription(sessionDescription);
+sendMessage(sessionDescription);
+}
+// Remote stream handlers...
+function handleRemoteStreamAdded(event) {
+console.log('Remote stream added.');
+attachMediaStream(remoteVideo, event.stream);
+console.log('Remote stream attached!!.');
+remoteStream = event.stream;
+}
+
+function handleRemoteStreamRemoved(event) {
+console.log('Remote stream removed. Event: ', event);
+}
+// Clean-up functions...
+function hangup() {
+console.log('Hanging up.');
+stop();
+sendMessage('bye');
+}
+function handleRemoteHangup() {
+console.log('Session terminated.');
+stop();
+isInitiator = false;
+}
+function stop() {
+isStarted = false;
+if (sendChannel) sendChannel.close();
+if (receiveChannel) receiveChannel.close();
+if (pc) pc.close();
+pc = null;
+sendButton.disabled=true;
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>ChatApp v0.0.2</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<link href="style.css" rel="stylesheet" type="text/css"/>
+		</div>
+	</head>
+	<body align="center">
+		<h3 id="title">ChatApp - Chat with Node</h3>
+		<div id="loginWrap" class="wraps">
+		<h3>Login to Continue</h3>
+			<form id="loginForm">
+				<input type="text" id="name" placeholder="Your name"/>
+				<input type="submit" value="Connect"/>
+				<p id="loginMsg"></p>
+				</form>
+		</div>
+		<div id="chatWrap" class="wraps">
+			<div id="chatBox">
+				<h3>Chat Box</h3>
+				<div id="chatScroll">
+				<ul>
+				</ul>
+				</div>
+				<form id="chatBox">
+				<input type="text" id="message" placeholder="Your Message"/>
+				<input type="submit" value="Send"/>
+				</form>
+			</div>
+			<div>
+				<h3>Connected now!</h3>
+				<ul id="userList">
+				</ul>
+			</div>
+			<div>
+				<h3>Video Chat</h3>
+				<p>Enter user name for remote user</p>
+				<input type="text" id="remoteUser"/>
+				<button id="connect">Connect</button>
+			</div>
+		</div>
+		<div id="video-chat" align="center">
+				<h3>Video Chat</h3>
+				<video id="remoteScreen" autoplay style="height:60%;width:50%;margin:10px;">
+				</video>
+				<video id="localScreen" autoplay style="height:20%;width:22%;margin:10px;">
+				</video>
+				<br />
+				<p id="callStatus">Calling...Waiting for the remote user's response.</p>
+				<br />
+				<button id="cancelCall" class="answer red">HangUp or Cancel</button>
+			</div>
+		<div class="callRequest">
+			<h2>You have a call from <span id="caller"></span> . Do you want to accept?</h2>
+			<button class="answer green">Yes</button>
+			<button class="answer red">No</button>
+		</div>
+		<div id="cover"></div>
+		<script type="text/javascript" src="jquerymain.js"></script>
+		<script src="/socket.io/socket.io.js"></script>
+		<script src="socket.management.js"></script>
+	</body>
+</html>
